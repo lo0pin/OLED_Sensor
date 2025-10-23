@@ -93,8 +93,9 @@ float pressures[measurements];
 
 int displaymode = 0;
 unsigned long timer = 0;
-const int WAIT_TIME = 4000;
-
+unsigned long button_timer = 0;
+const int WAIT_TIME = 10000;
+const int WAIT_TIME_BUTTON = 300; 
 
 
 void setup() {
@@ -260,10 +261,22 @@ void loop() {
 
     case 2: {
       display.print("T");
+      
+
     
       //DateTime now = rtc.now();
       const float T_MIN = -10.0;
       const float T_MAX =  40.0;
+      
+      // Nullinie
+      int y_achse = SCREEN_HEIGHT - 1 - (int)round((0 - T_MIN) * (SCREEN_HEIGHT - 1) / (T_MAX - T_MIN));
+      if (y_achse<0) y_achse = 0;
+      if (y_achse>SCREEN_HEIGHT - 1) y_achse = SCREEN_HEIGHT - 1;
+      display.drawLine(0, y_achse, xMax, y_achse, SSD1306_WHITE);
+      
+      display.drawPixel(6*3, y_achse-1, SSD1306_WHITE);
+      display.drawPixel(12*3, y_achse-1, SSD1306_WHITE);
+      display.drawPixel(18*3, y_achse-1, SSD1306_WHITE);
     
       for (int i = 0; i < array_len; ++i) {
         int idx = (start + i) % array_len;
@@ -275,7 +288,7 @@ void loop() {
     
         int y = SCREEN_HEIGHT - 1 - (int)round((v - T_MIN) * (SCREEN_HEIGHT - 1) / (T_MAX - T_MIN));
         int x = i * 3;        if (x >= 0 && x < SCREEN_WIDTH && y >= 0 && y < SCREEN_HEIGHT) {
-          display.drawPixel(x, y, SSD1306_WHITE);
+          display.drawPixel(x, y, !display.getPixel(x,y));
         }
       }
 
@@ -283,15 +296,7 @@ void loop() {
       for (int i = 0; i<array_len; ++i){
         if (temp_messungen[i]>max_temp) max_temp=temp_messungen[i];
       }
-      // Nullinie
-      int y_achse = SCREEN_HEIGHT - 1 - (int)round((0 - T_MIN) * (SCREEN_HEIGHT - 1) / (T_MAX - T_MIN));
-      if (y_achse<0) y_achse = 0;
-      if (y_achse>SCREEN_HEIGHT - 1) y_achse = SCREEN_HEIGHT - 1;
-      display.drawLine(0, y_achse, xMax, y_achse, SSD1306_WHITE);
-      
-      display.drawPixel(6*3, y_achse-1, SSD1306_WHITE);
-      display.drawPixel(12*3, y_achse-1, SSD1306_WHITE);
-      display.drawPixel(18*3, y_achse-1, SSD1306_WHITE);
+
       
       
       display.setCursor(xMax+5, 0);
@@ -305,6 +310,15 @@ void loop() {
     case 3:
     {
       display.println("H");
+
+      //Nulllinie
+      display.drawLine(0, SCREEN_HEIGHT/2, xMax, SCREEN_HEIGHT/2, SSD1306_WHITE);
+      display.drawPixel(6*3, SCREEN_HEIGHT/2-1, SSD1306_WHITE);
+      display.drawPixel(12*3, SCREEN_HEIGHT/2-1, SSD1306_WHITE);
+      display.drawPixel(18*3, SCREEN_HEIGHT/2-1, SSD1306_WHITE);
+//      display.drawPixel(6*3, SCREEN_HEIGHT/2+1, SSD1306_WHITE);
+//      display.drawPixel(12*3, SCREEN_HEIGHT/2+1, SSD1306_WHITE);
+//      display.drawPixel(18*3, SCREEN_HEIGHT/2+1, SSD1306_WHITE);
       
       float hum_max = 0.0f;
       float hum_min = 100.0f;
@@ -324,20 +338,39 @@ void loop() {
         int x = i * 3;
         if (x >= 0 && x < SCREEN_WIDTH && y >= 0 && y < SCREEN_HEIGHT) {
           
-          display.drawPixel(x, y, SSD1306_WHITE);
+          display.drawPixel(x, y, !display.getPixel(x,y));
         }
+
+
         
       }
       display.setCursor(xMax+5, 0);
       display.print(hum_max, 1);
       display.println(" %");
-      display.setCursor(xMax+5, 20);
+
+      display.setCursor(xMax+5, 12);
+      display.print(H,1);
+      display.println(" %");
+            
+      display.setCursor(xMax+5, 25);
       display.print(hum_min,1);
       display.println(" %");
-     
+
       break;      
     }
     case 4: {
+      display.clearDisplay();
+
+      
+      //Nulllinie
+      display.drawLine(0, SCREEN_HEIGHT/2, xMax, SCREEN_HEIGHT/2, SSD1306_WHITE);
+      display.drawPixel(6*3, SCREEN_HEIGHT/2-1, SSD1306_WHITE);
+      display.drawPixel(12*3, SCREEN_HEIGHT/2-1, SSD1306_WHITE);
+      display.drawPixel(18*3, SCREEN_HEIGHT/2-1, SSD1306_WHITE);
+//      display.drawPixel(6*3, SCREEN_HEIGHT/2+1, SSD1306_WHITE);
+//      display.drawPixel(12*3, SCREEN_HEIGHT/2+1, SSD1306_WHITE);
+//      display.drawPixel(18*3, SCREEN_HEIGHT/2+1, SSD1306_WHITE);
+      
       display.println("P"); 
       float pres_max = 0.0f;
       float pres_min = 9999.0f;
@@ -358,16 +391,21 @@ void loop() {
         int x = i * 3;
         if (x >= 0 && x < SCREEN_WIDTH && y >= 0 && y < SCREEN_HEIGHT) {
           
-          display.drawPixel(x, y, SSD1306_WHITE);
+          display.drawPixel(x, y, !display.getPixel(x,y));
         }
         
       }
       display.setCursor(xMax+5, 0);
       display.print(pres_max, 1);
-      display.println(" hPa");
-      display.setCursor(xMax+5, 20);
+      display.println("hPa");
+      
+      display.setCursor(xMax+5, 12);
+      display.print(P,1);
+      display.println("hPa");
+      
+      display.setCursor(xMax+5, 25);
       display.print(pres_min,1);
-      display.println(" hPa");
+      display.println("hPa");
      
       break; 
     }
@@ -375,6 +413,14 @@ void loop() {
 
   display.display();
 
+  if (millis() - button_timer > WAIT_TIME_BUTTON){
+    if (digitalRead(9)){
+      displaymode = displaymode < 4 ? displaymode + 1 : 0;
+      button_timer = millis();
+      timer = millis();
+    }
+  }
+ 
 
 
   if (millis() - timer < WAIT_TIME) return;
