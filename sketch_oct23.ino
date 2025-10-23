@@ -93,7 +93,7 @@ float pressures[measurements];
 
 int displaymode = 0;
 unsigned long timer = 0;
-const int WAIT_TIME = 2000;
+const int WAIT_TIME = 4000;
 
 
 
@@ -240,32 +240,36 @@ void loop() {
       display.println("Time and Date");
       display.println(time_now_string);
       display.println(date_now_string);
+
       break;      
     }
 
     case 1:
     {
-      display.println("Temperature");
+      display.print("Temp:  ");
       display.print(T, 1);
       display.println(" C");
-      break;      
+      display.print("Hygr:  ");
+      display.print(H, 1);
+      display.println(" %");
+      display.print("Baro:  ");    
+      display.print(P, 1);  
+      display.println(" hPa");  
+      break;     
     }
 
     case 2: {
-      // Nullinie
-
-      display.drawLine(0, SCREEN_HEIGHT - 1, xMax, SCREEN_HEIGHT - 1, SSD1306_WHITE);
+      display.print("T");
     
       //DateTime now = rtc.now();
-      
+      const float T_MIN = -10.0;
+      const float T_MAX =  40.0;
     
       for (int i = 0; i < array_len; ++i) {
         int idx = (start + i) % array_len;
         float v = temp_messungen[idx];
         if (v == -1) continue; // nur echte Messwerte plotten
     
-        const float T_MIN = -10.0;
-        const float T_MAX =  40.0;
         if (v < T_MIN) v = T_MIN;
         if (v > T_MAX) v = T_MAX;
     
@@ -279,6 +283,17 @@ void loop() {
       for (int i = 0; i<array_len; ++i){
         if (temp_messungen[i]>max_temp) max_temp=temp_messungen[i];
       }
+      // Nullinie
+      int y_achse = SCREEN_HEIGHT - 1 - (int)round((0 - T_MIN) * (SCREEN_HEIGHT - 1) / (T_MAX - T_MIN));
+      if (y_achse<0) y_achse = 0;
+      if (y_achse>SCREEN_HEIGHT - 1) y_achse = SCREEN_HEIGHT - 1;
+      display.drawLine(0, y_achse, xMax, y_achse, SSD1306_WHITE);
+      
+      display.drawPixel(6*3, y_achse-1, SSD1306_WHITE);
+      display.drawPixel(12*3, y_achse-1, SSD1306_WHITE);
+      display.drawPixel(18*3, y_achse-1, SSD1306_WHITE);
+      
+      
       display.setCursor(xMax+5, 0);
       display.print(max_temp, 1);
       display.print(" C");
@@ -287,28 +302,21 @@ void loop() {
       break;
     }
 
-
-    case 3:{
-      display.println("Humidity");
-      display.print(H, 1);
-      display.println(" %");
-      break;      
-    }
-
-    case 4:
+    case 3:
     {
-      //display.println("Humidity");
+      display.println("H");
       
       float hum_max = 0.0f;
       float hum_min = 100.0f;
       for (int i = 0; i<array_len; ++i){
-        float value_now = humid_messungen[i];
-        if (value_now == -1) continue;
-        if (value_now > hum_max) hum_max = value_now;
-        if (value_now < hum_min) hum_min = value_now;
+        float hum_value_now = humid_messungen[i];
+        if (hum_value_now == -1) continue;
+        if (hum_value_now > hum_max) hum_max = hum_value_now;
+        if (hum_value_now < hum_min) hum_min = hum_value_now;
       }
       float hum_step = (hum_max-hum_min)/(SCREEN_HEIGHT - 1);
-      if (hum_step <= 0) hum_step = 1.0f;      for (int i =0; i<array_len; ++i){
+      if (hum_step <= 0) hum_step = 1.0f;      
+      for (int i =0; i<array_len; ++i){
         int idx = (start + i) % array_len;
         float h = humid_messungen[idx];
         if (h == -1) continue; // nur echte Messwerte plotten        
@@ -329,12 +337,8 @@ void loop() {
      
       break;      
     }
-
-    case 5: {
-      display.println("Pressure");    display.print(P, 1);  display.println(" hPa");  break;
-    }
-    case 6: {
-      //display.println("Pressure"); 
+    case 4: {
+      display.println("P"); 
       float pres_max = 0.0f;
       float pres_min = 9999.0f;
       for (int i = 0; i<array_len; ++i){
@@ -375,7 +379,7 @@ void loop() {
 
   if (millis() - timer < WAIT_TIME) return;
  
-  displaymode = displaymode < 6 ? displaymode + 1 : 0;
+  displaymode = displaymode < 4 ? displaymode + 1 : 0;
   //Serial.print("Displaymode:\t");
   //Serial.println(displaymode);
   
