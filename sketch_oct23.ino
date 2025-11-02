@@ -1,266 +1,75 @@
-#include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
-
-#define SCREEN_WIDTH 128 // OLED-Breite
-#define SCREEN_HEIGHT 32 // OLED-Höhe
-#define OLED_RESET    -1 // Reset-Pin (nicht verwendet beim I2C-Modul)
-#define OLED_ADDRESS  0x3C // Meist 0x3C oder 0x3D
+#include "bme_sensor.h"
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-
-
-#include "RTClib.h"
-// I2C-Instanz RTC:
-RTC_DS3231 rtc;     // Für DS3231 (genauer & mit Temperatur)
-
-
-#include <Adafruit_Sensor.h>
-#include <Adafruit_BME280.h>
-// I2C-Instanz Sensor
+RTC_DS3231 rtc;
 Adafruit_BME280 bme;
-// Hinweis: BME280 hat meist I2C-Adresse 0x76 ODER 0x77
-
-float T = 0;
-float H = 0;
-float P = 0;
-
-float temp_messungen[24] = {
-  -1, -1, -1, -1, -1, -1,
-  -1, -1, -1, -1, -1, -1,
-  -1, -1, -1, -1, -1, -1,
-  -1, -1, -1, -1, -1, -1
-};
-
-//float temp_messungen[24] = {
-//  1.3, 2.8, 3.1, 4.7, 5.4, 6.2,
-//  7.0, 8.3, -9.1, 10.0, 11.8, 12.4,
-//  13.0, 14.3, 15.1, 16.5, 17.7, 18.9,
-//  19.8, 20.5, 21.4, 22.2, 23.3, 24.6
-//};
-
-//int temp_pixel[24] = {
-//  -1, -1, -1, -1, -1, -1,
-//  -1, -1, -1, -1, -1, -1,
-//  -1, -1, -1, -1, -1, -1,
-//  -1, -1, -1, -1, -1, -1
-//};
-
-float humid_messungen[24] = {
-  -1, -1, -1, -1, -1, -1,
-  -1, -1, -1, -1, -1, -1,
-  -1, -1, -1, -1, -1, -1,
-  -1, -1, -1, -1, -1, -1
-};
-
-//int humid_pixel[24] = {
-//  -1, -1, -1, -1, -1, -1,
-//  -1, -1, -1, -1, -1, -1,
-//  -1, -1, -1, -1, -1, -1,
-//  -1, -1, -1, -1, -1, -1
-//};
-
-// -------- Barograph --------
-float baro_messungen[24] = {
-  -1, -1, -1, -1, -1, -1,
-  -1, -1, -1, -1, -1, -1,
-  -1, -1, -1, -1, -1, -1,
-  -1, -1, -1, -1, -1, -1
-};
-
-//int baro_pixel[24] = {
-//  -1, -1, -1, -1, -1, -1,
-//  -1, -1, -1, -1, -1, -1,
-//  -1, -1, -1, -1, -1, -1,
-//  -1, -1, -1, -1, -1, -1
-//};
-const int array_len = 24;
-int old_hour = -1;
-
-int meassure_counter = 0;
-const int measurements = 5;
-float temps[measurements];
-float humids[measurements];
-float pressures[measurements];
-
-#define upperbuttonpowersource 12
-#define lowerbuttonpowersource 6
-#define upperbuttonsensor 3
-#define lowerbuttonsensor 9
-
-//bool lowerbutton = false;
-//bool upperbutton = false;
-
-int displaymode = 0;
-unsigned long timer = 0;
-unsigned long button_timer = 0;
-const int WAIT_TIME = 10000;
-const int WAIT_TIME_BUTTON = 300;
-
 
 void setup() {
-  //Serial.begin(9600);
   Wire.begin();
-  if (!rtc.begin()) {
-    //Serial.println("RTC not found");
-    while (1);
+  /*Einmal-Setup: ohne Kommentar hochladen und dann auskommentiert nochmal hochladen, sonst wird bei 
+   jedem Bootvorgang die Kompilierzeit in die RTC geschrieben*/
+  
+  setupPins();
+  setupPeripherie(display, rtc, bme);
+
+  for (int i = 0; i < numberOfMeassurements; ++i) {
+    fill_arrays(bme, temps, humids, pressures, i);
   }
-  if (!bme.begin(0x76)) {
-    //Serial.println("BME280 not found");
-    while (1);
-  }
-  //rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  mittelwerte_berechnen(T, H, P, temps, humids, pressures, numberOfMeassurements);
 
-  pinMode(upperbuttonpowersource, OUTPUT);
-  pinMode(lowerbuttonpowersource, OUTPUT);
-  pinMode(upperbuttonsensor, INPUT);
-  pinMode(lowerbuttonsensor, INPUT);
-
-  digitalWrite(upperbuttonpowersource, HIGH);
-  digitalWrite(lowerbuttonpowersource, HIGH);
-
-
-  if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS)) {
-    //Serial.println(F("SSD1306 nicht gefunden!"));
-    for (;;); // Stoppt hier
-  }
-  display.clearDisplay();
-  // Löscht den gesamten Bildschirminhalt im Speicher des Displays.
-  // Der Bildschirm wird erst nach display.display() tatsächlich aktualisiert.
-
-  display.setTextSize(1);
-  // Legt die Textgröße fest (1 = kleinste Standardgröße).
-  // Größere Zahlen vergrößern den Text proportional.
-
-  display.setTextColor(SSD1306_WHITE);
-  // Setzt die Textfarbe auf "weiß" (bei monochromen OLEDs = leuchtende Pixel).
-  // Es gibt auch SSD1306_BLACK (löscht Text) oder SSD1306_INVERSE (invertiert).
-
-  display.setCursor(0, 10);
-  // Setzt den "Schreibcursor" auf Position x=0, y=10 Pixel.
-  // Dort beginnt der nächste Text, der mit println() ausgegeben wird.
-
-  display.println(F("Hallo BUBU!"));
-  // Schreibt den Text "Hallo BUBU!" in den Display-Puffer.
-  // Das 'F()' sorgt dafür, dass der Text im Flash-Speicher bleibt (spart RAM).
-
-  display.display();
-  // Aktualisiert das Display – alles, was im Speicher steht, wird jetzt angezeigt.
-  //
-
-  for (int i = 0; i < 5; ++i) {
-    temps[i] = bme.readTemperature();     // °C
-    humids[i] = bme.readHumidity();
-    pressures[i] = bme.readPressure() / 100.0F; // in hPa
-  }
-  for (int i = 0; i < measurements; ++i) {
-    T += temps[i];
-    H += humids[i];
-    P += pressures[i];
-  }
-  T /= measurements;
-  H /= measurements;
-  P /= measurements;
-
-  timer = millis();
+  timer = button_timer = meassure_timer = millis();
 }
 
 
 
 void loop() {
-  /*
-    // ---- Button Handling ----
-    static bool lastButtonState = LOW;
-    static unsigned long lastDebounceTime = 0;
-    const unsigned long debounceDelay = 50; // 50 ms Entprellzeit
-
-    int buttonState = digitalRead(lowerbuttonsensor);
-
-    // nur weiter, wenn Signal sich ändert
-    if (buttonState != lastButtonState) {
-      lastDebounceTime = millis();
-    }
-
-    // wenn stabil für > 50 ms:
-    if ((millis() - lastDebounceTime) > debounceDelay) {
-      // steigende Flanke = Taster gedrückt
-      if (buttonState == HIGH && lastButtonState == LOW) {
-        displaymode = (displaymode < 6) ? displaymode + 1 : 0;
-        Serial.print("Displaymode: ");
-        Serial.println(displaymode);
-
-        // optional: direkt updaten
-        display.clearDisplay();
-      }
-    }
-
-    lastButtonState = buttonState;
-  */
-  DateTime now = rtc.now();
-  temps[meassure_counter] = bme.readTemperature();     // °C
-  humids[meassure_counter] = bme.readHumidity();
-  pressures[meassure_counter] = bme.readPressure() / 100.0F; // in hPa
-  meassure_counter = meassure_counter < 4 ? meassure_counter + 1 : 0;
+  DateTime right_now = rtc.now();
+  //CheckZeitumstellung(rtc, right_now);
+  doMeasurements(bme);
 
 
-  //  if (millis() - timer >= WAIT_TIME) {
-  //    displaymode = displaymode <6? displaymode+1 : 0;
-  //    timer = millis();
-  //  }
-
-
-
-
-
-  String time_now_string = String(now.hour());
-  time_now_string += ":";
-  if ((int)now.minute() < 10) {
-    time_now_string += "0";
+  // Nur zur vollen Stunde ins Array (deine Vorgabe bleibt)
+  if ((int)right_now.hour() != old_hour) {
+    old_hour = (int)right_now.hour();
+    temp_messungen[old_hour]  = T;
+    humid_messungen[old_hour] = H;
+    baro_messungen[old_hour]  = P;
+    
   }
-  time_now_string += String(now.minute());
-  time_now_string += ":";
-  if (now.second() < 10) time_now_string += "0";
-  time_now_string += String(now.second());
 
-  String date_now_string = String(now.day());
-  date_now_string += ".";
-  date_now_string += String(now.month());
-  date_now_string += ".";
-  date_now_string += String(now.year());
-
-
+  
+  
+  getTimeAndDateString(time_now_string, date_now_string, right_now);
 
   display.clearDisplay();
   display.setCursor(0, 0);
 
-  int xMax = min(array_len * 3, SCREEN_WIDTH - 1);
-  int start = (now.hour() + 1) % array_len;
+
+  int start = (right_now.hour() + 1) % array_len;
 
   switch (displaymode) {
-    case 0: {
-        display.println("Time and Date");
-        display.println(time_now_string);
-        display.println(date_now_string);
-
+    case 0: 
+      {
+        printTimeAndDate(display, time_now_string, date_now_string);
         break;
       }
-
     case 1:
       {
-        display.print("Temp:  ");
+        //printTempHygroBaro(display, T, H, P);
+        display.print(F("Temp:  "));
         display.print(T, 1);
         display.println(" C");
-        display.print("Hygr:  ");
+        display.print(F("Hygr:  "));
         display.print(H, 1);
         display.println(" %");
-        display.print("Baro:  ");
+        display.print(F("Baro:  "));
         display.print(P, 1);
-        display.println(" hPa");
+        display.println(F(" hPa"));
         break;
       }
 
     case 2: {
-        display.print("T");
+        display.print(F("T"));
 
 
 
@@ -310,15 +119,15 @@ void loop() {
 
         display.setCursor(xMax + 5, 0);
         display.print(max_temp, 1);
-        display.print(" C");
+        display.print(F(" C"));
 
         display.setCursor(xMax + 5, 12);
         display.print(durchschnitt, 1);
-        display.println(" C");
+        display.println(F(" C"));
 
         display.setCursor(xMax + 5, 25);
         display.print(min_temp, 1);
-        display.println(" C");
+        display.println(F(" C"));
 
 
         break;
@@ -363,15 +172,15 @@ void loop() {
         }
         display.setCursor(xMax + 5, 0);
         display.print(hum_max, 1);
-        display.println(" %");
+        display.println(F(" %"));
 
         display.setCursor(xMax + 5, 12);
         display.print((hum_max + hum_min) / 2, 1);
-        display.println(" %");
+        display.println(F(" %"));
 
         display.setCursor(xMax + 5, 25);
         display.print(hum_min, 1);
-        display.println(" %");
+        display.println(F(" %"));
 
         break;
       }
@@ -388,7 +197,7 @@ void loop() {
         //      display.drawPixel(12*3, SCREEN_HEIGHT/2+1, SSD1306_WHITE);
         //      display.drawPixel(18*3, SCREEN_HEIGHT/2+1, SSD1306_WHITE);
 
-        display.println("P");
+        display.println(F("P"));
         float pres_max = 0.0f;
         float pres_min = 9999.0f;
         for (int i = 0; i < array_len; ++i) {
@@ -415,15 +224,15 @@ void loop() {
         }
         display.setCursor(xMax + 5, 0);
         display.print(pres_max, 1);
-        display.println("hPa");
+        display.println(F("hPa"));
 
         display.setCursor(xMax + 5, 12);
         display.print((pres_max + pres_min) / 2, 1);
-        display.println("hPa");
+        display.println(F("hPa"));
 
         display.setCursor(xMax + 5, 25);
         display.print(pres_min, 1);
-        display.println("hPa");
+        display.println(F("hPa"));
 
         break;
       }
@@ -432,62 +241,14 @@ void loop() {
   display.display();
 
   if (millis() - button_timer > WAIT_TIME_BUTTON) {
-    if (digitalRead(9)) {
-      displaymode = displaymode < 4 ? displaymode + 1 : 0;
-      button_timer = millis();
-      timer = millis();
-    }
-    if (digitalRead(3)) {
-      displaymode = displaymode > 0 ? displaymode - 1 : 4;
-      button_timer = millis();
-      timer = millis();
-    }
-
-
+    handleButtonInput();
   }
+
 
 
 
   if (millis() - timer > WAIT_TIME) {
     displaymode = displaymode < 4 ? displaymode + 1 : 0;
-    //Serial.print("Displaymode:\t");
-    //Serial.println(displaymode);
-
-    // Mittelwerte bilden
-    T = H = P = 0;
-    for (int i = 0; i < measurements; ++i) {
-      T += temps[i];
-      H += humids[i];
-      P += pressures[i];
-    }
-    T /= measurements; H /= measurements; P /= measurements;
-    meassure_counter = 0;
-
-    // Nur zur vollen Stunde ins Array (deine Vorgabe bleibt)
-    DateTime now_tmp = rtc.now();
-    if ((int)now_tmp.hour() != old_hour) {
-      old_hour = (int)now_tmp.hour();
-      temp_messungen[old_hour]  = T;
-      humid_messungen[old_hour] = H;
-      baro_messungen[old_hour]  = P;
-    }
-
-
-
-
-
-
     timer = millis();
   }
-
-
-
-
-
-
-
-
-
-
-
 }
