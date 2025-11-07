@@ -4,6 +4,8 @@
 #include "RTClib.h"
 #include <Adafruit_BME280.h>
 
+
+
 /* * * * * * * * * * * * * * * *
  * Konstanten                  *
  * * * * * * * * * * * * * * * */
@@ -17,12 +19,14 @@
 #define upperbuttonsensor 3
 #define lowerbuttonsensor 9
 
+#define numberofdisplaymodes 3
+
 constexpr int   array_len = 24;
 constexpr int   numberOfMeassurements = 5;
-constexpr int  WAIT_TIME = 10000;
-constexpr int  WAIT_TIME_BUTTON = 300;
+constexpr int   WAIT_TIME = 10000;
+constexpr int   WAIT_TIME_BUTTON = 300;
 constexpr int   WAIT_TIME_MEASSURE = 200;
-constexpr int  WAIT_TIME_MITTELWERT = 3000;
+constexpr int   WAIT_TIME_MITTELWERT = 3000;
 constexpr int   xMax = (array_len * 3 < SCREEN_WIDTH - 1) ? array_len * 3 : (SCREEN_WIDTH - 1);
 
 /* * * * * * * * * * * * * * * *
@@ -39,11 +43,11 @@ extern float humid_messungen[array_len];
 extern float baro_messungen[array_len];
 
 extern int currentMeassurementCounter;
-extern float temps[numberOfMeassurements];
-extern float humids[numberOfMeassurements];
-extern float pressures[numberOfMeassurements];
+extern float tempsforMittelwert[numberOfMeassurements];
+extern float humidsforMittelwert[numberOfMeassurements];
+extern float pressuresforMittelwert[numberOfMeassurements];
 
-extern int MeassurementCounterMittelwert;
+extern int MeassurementTimerMittelwert;
 
 //Aufnahme in 24h Chronologie
 extern int old_hour;
@@ -60,6 +64,11 @@ extern unsigned long meassure_timer;
 
 extern String time_now_string;
 extern String date_now_string;
+
+// --- EEPROM Persistenz ---
+bool loadMeasurementsFromEEPROM();   // gibt true zurück, wenn gültige Daten geladen wurden
+bool saveMeasurementsToEEPROM();     // schreibt aktuelle Arrays in den EEPROM
+
 
 
 /* * * * * * * * * * * * * * * *
@@ -83,6 +92,11 @@ bool isPastLastSundayOfOctober(const DateTime& dt);
 bool isLastSundayOfMarch(const DateTime& dt);
 void CheckZeitumstellung(RTC_DS3231& rtc_ref, const DateTime& dt);
 
-
+void printTimeDateMeasurements(Adafruit_SSD1306& dis, String& tns, String& dns, float& T, float& H, float& P);
 void printTimeAndDate(Adafruit_SSD1306& dis, String& tns, String& dns);
 void printTempHygroBaro(Adafruit_SSD1306& dis, float& T, float& H, float& P);
+
+void saveHourlyMeasurements(int& oldhour_var, DateTime& right_now_var, float temp_messungen_var[], float humid_messungen_var[], float baro_messungen_var[],float& T_var, float& H_var, float& P_var);
+
+void drawAxeY(int y, Adafruit_SSD1306& dis);
+void drawGraph(float the_array[], Adafruit_SSD1306& dis, const int start_val, const String string_val);
