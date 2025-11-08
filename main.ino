@@ -1,8 +1,4 @@
 #include "bme_sensor.h"
-#define DEBUG 0
-  /*Einmal-Setup: ohne Kommentar hochladen und dann auskommentiert nochmal hochladen, sonst wird bei 
-   jedem Bootvorgang die Kompilierzeit in die RTC geschrieben*/
-#define SETUP_TIME 0
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 RTC_DS3231 rtc;
@@ -15,7 +11,7 @@ void setup() {
   Wire.begin();
   setupPins();
   setupPeripherie(display, rtc, bme);
-  #if SETUP_TIME
+  #if FIX_TIME_ONCE
   rtc_ref.adjust(DateTime(F(__DATE__), F(__TIME__)));
   #endif
   for (int i = 0; i < numberOfMeassurements; ++i) {
@@ -46,7 +42,7 @@ void loop() {
 
   // Nur zur vollen Stunde ins Array (deine Vorgabe bleibt)
   if ((int)right_now.hour() != old_hour) {
-    saveHourlyMeasurements(old_hour, right_now, temp_messungen, humid_messungen, baro_messungen, T, H, P);
+    saveHourlyMeasurements(old_hour, right_now, temp_messungen, humid_messungen, baro_messungen, hourlyMittelwertTemp, hourlyMittelwertHygro, hourlyMittelwertBaro);
   }
 
   getTimeAndDateString(time_now_string, date_now_string, right_now);
@@ -69,9 +65,9 @@ void loop() {
         //DateTime now = rtc.now();
         const float T_MIN = -10.0;
         const float T_MAX =  40.0;
-
         drawAxeY(SCREEN_HEIGHT - 1 - (int)round((0 - T_MIN) * (SCREEN_HEIGHT - 1) / (T_MAX - T_MIN)),display);
-       
+        //drawGraph(temp_messungen, display, start, F(" C"), T_MIN, T_MAX);
+
 
         for (int i = 0; i < array_len; ++i) {
           int idx = (start + i) % array_len;
@@ -105,9 +101,6 @@ void loop() {
           durchschnitt /= divisor;
         } 
         
-
-
-
         display.setCursor(xMax + 5, 0);
         display.print(max_temp, 1);
         display.print(F(" C"));
@@ -121,6 +114,7 @@ void loop() {
         display.println(F(" C"));
 
 
+
         break;
       }
 
@@ -128,13 +122,13 @@ void loop() {
       {
         display.println("H");
         drawAxeY(SCREEN_HEIGHT / 2, display); //Nulllinie
-        drawGraph(humid_messungen, display, start, F(" %"));
+        drawGraph(humid_messungen, display, start, F(" %"), 9999.9f, -9999.9f);
         break;
       }
     case 3: {
         display.print(F("P"));
         drawAxeY(SCREEN_HEIGHT / 2, display); //Nulllinie
-        drawGraph(baro_messungen, display, start, F("hPa"));
+        drawGraph(baro_messungen, display, start, F("hPa"), 9999.9f, -9999.9f);
         break;
       }
   }
@@ -145,8 +139,13 @@ void loop() {
     handleButtonInput();
   }
 
-
-
+  if (old_minute != right_now.minute()){
+    old_minute = right_now.minute();
+    hourlyMittelwertTemp  += T;
+    hourlyMittelwertHygro += H; 
+    hourlyMittelwertBaro  += P;
+    hourlyMittelwertCounter++;
+  }
 
   if (millis() - timer > WAIT_TIME) {
     displaymode = displaymode < numberofdisplaymodes ? displaymode + 1 : 0;

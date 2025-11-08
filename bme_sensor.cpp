@@ -31,9 +31,9 @@ float baro_messungen[array_len] = {
   -1, -1, -1, -1, -1, -1
 };
 
-int old_hour = -1;
-int old_day = -1;
-bool sommerzeit = false;
+int old_hour =      99;
+int old_day =       -1;
+bool sommerzeit =   false;
 
 int currentMeassurementCounter = 0;
 float tempsforMittelwert[numberOfMeassurements] = {}; //5
@@ -42,20 +42,27 @@ float pressuresforMittelwert[numberOfMeassurements] = {};
 
 int MeassurementTimerMittelwert = 0;
 
-int displaymode = 0;
+int displaymode =   0;
 
-unsigned long timer = 0;
-unsigned long button_timer = 0;
-unsigned long meassure_timer = 0;
+unsigned long timer =           0;
+unsigned long button_timer =    0;
+unsigned long meassure_timer =  0;
 
-String time_now_string = "";
-String date_now_string = "";
+String time_now_string =        "";
+String date_now_string =        "";
+
+float    hourlyMittelwertTemp      = 0;
+float    hourlyMittelwertHygro     = 0;
+float    hourlyMittelwertBaro      = 0;
+uint8_t     hourlyMittelwertCounter   = 0;
+int         old_minute                = 99;
+
 
 void getTimeAndDateString(String& timeString, String& dateString, const DateTime& actual_datetime) {
-  if (actual_datetime.hour() <10){
+  if (actual_datetime.hour() < 10) {
     timeString = "0";
     timeString += String(actual_datetime.hour());
-  } else{
+  } else {
     timeString = String(actual_datetime.hour());
   }
   timeString = String(actual_datetime.hour());
@@ -67,8 +74,8 @@ void getTimeAndDateString(String& timeString, String& dateString, const DateTime
   timeString += ":";
   if (actual_datetime.second() < 10) timeString += "0";
   timeString += String(actual_datetime.second());
-  
-  if ((int)actual_datetime.day()<10){
+
+  if ((int)actual_datetime.day() < 10) {
     dateString = "0";
     dateString += String(actual_datetime.day());
   } else {
@@ -76,7 +83,7 @@ void getTimeAndDateString(String& timeString, String& dateString, const DateTime
   }
   dateString = String(actual_datetime.day());
   dateString += ".";
-  if (actual_datetime.month()<10){
+  if (actual_datetime.month() < 10) {
     dateString += "0";
   }
   dateString += String(actual_datetime.month());
@@ -116,26 +123,30 @@ void setupPins() {
   pinMode(lowerbuttonsensor, INPUT);
   digitalWrite(upperbuttonpowersource, HIGH);
   digitalWrite(lowerbuttonpowersource, HIGH);
+#if INDICATOR_LED
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);
+#endif
 }
 
 void setupPeripherie(Adafruit_SSD1306& display_ref, RTC_DS3231& rtc_ref, Adafruit_BME280& bme_ref) {
   if (!rtc_ref.begin()) {
-    #if DEBUG
+#if DEBUG
     Serial.println(F("RTC not found"));
-    #endif
+#endif
     while (1);
   }
   if (!bme_ref.begin(0x76)) {
-    #if DEBUG
+#if DEBUG
     Serial.println(F("BME280 not found"));
-    #endif
+#endif
     while (1);
   }
 
   if (!display_ref.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS)) {
-    #if DEBUG
+#if DEBUG
     Serial.println(F("SSD1306 nicht gefunden!"));
-    #endif
+#endif
     while (1); // Stoppt hier
   }
   display_ref.clearDisplay();
@@ -164,10 +175,16 @@ void setupPeripherie(Adafruit_SSD1306& display_ref, RTC_DS3231& rtc_ref, Adafrui
 
 void doMeasurements(Adafruit_BME280& bme_var) {
   if (millis() - meassure_timer > WAIT_TIME_MEASSURE) {
+#if INDICATOR_LED
+    digitalWrite(LED_BUILTIN, 0);
+#endif
     fill_arrays(bme_var, tempsforMittelwert, humidsforMittelwert, pressuresforMittelwert, currentMeassurementCounter);
     if (MeassurementTimerMittelwert >= WAIT_TIME_MITTELWERT) {
       mittelwerte_berechnen(T, H, P, tempsforMittelwert, humidsforMittelwert, pressuresforMittelwert, numberOfMeassurements);
       MeassurementTimerMittelwert = 0;
+#if INDICATOR_LED
+      digitalWrite(LED_BUILTIN, 1);
+#endif
     } else {
       MeassurementTimerMittelwert += WAIT_TIME_MEASSURE;
     }
@@ -244,9 +261,9 @@ bool isPastLastSundayOfOctober(const DateTime& dt) {
   return ((dt.month() == 10 && 31 - dt.day() < 7) || dt.month() > 10);
 }
 
-void printTimeDateMeasurements(Adafruit_SSD1306& dis, String& tns, String& dns, float& T, float& H, float& P){
-  dis.print(tns); 
-  dis.print("  "); 
+void printTimeDateMeasurements(Adafruit_SSD1306& dis, String& tns, String& dns, float& T, float& H, float& P) {
+  dis.print(tns);
+  dis.print("  ");
   dis.println(dns);
   dis.print(F("Temp:  "));
   dis.print(T, 1);
@@ -259,17 +276,27 @@ void printTimeDateMeasurements(Adafruit_SSD1306& dis, String& tns, String& dns, 
   dis.print(F(" hPa"));
 }
 
-void saveHourlyMeasurements(int& oldhour_var, DateTime& right_now_var, float temp_messungen_var[], float humid_messungen_var[], float baro_messungen_var[],float& T_var, float& H_var, float& P_var){
+void saveHourlyMeasurements(int& oldhour_var, const DateTime& right_now_var, float temp_messungen_var[], float humid_messungen_var[], float baro_messungen_var[], float& T_var, float& H_var, float& P_var) {
+  if (hourlyMittelwertCounter > 0) {
+    temp_messungen_var[oldhour_var]  = T_var / hourlyMittelwertCounter;
+    humid_messungen_var[oldhour_var] = H_var / hourlyMittelwertCounter;
+    baro_messungen_var[oldhour_var]  = P_var / hourlyMittelwertCounter;
+  } else {
+  // Optional: Slot explizit markieren (statt "alten" Wert stehen zu lassen)
+  temp_messungen_var[oldhour_var]  = -1;
+  humid_messungen_var[oldhour_var] = -1;
+  baro_messungen_var[oldhour_var]  = -1;
+  }
   oldhour_var = (int)right_now_var.hour();
-  temp_messungen_var[oldhour_var]  = T_var;
-  humid_messungen_var[oldhour_var] = H_var;
-  baro_messungen_var[oldhour_var]  = P_var;
-  
+  hourlyMittelwertTemp      = 0;
+  hourlyMittelwertHygro     = 0;
+  hourlyMittelwertBaro      = 0;
+  hourlyMittelwertCounter   = 0;
+
   saveMeasurementsToEEPROM(); // nicht in jeder Loop – nur bei echter Änderung!
 }
 
-
-void drawAxeY(int y, Adafruit_SSD1306& dis){
+void drawAxeY(int y, Adafruit_SSD1306& dis) {
   if (y < 0) y = 0;
   if (y > SCREEN_HEIGHT - 1) y = SCREEN_HEIGHT - 1;
   dis.drawLine(0, y, xMax, y, SSD1306_WHITE);
@@ -278,34 +305,34 @@ void drawAxeY(int y, Adafruit_SSD1306& dis){
   dis.drawPixel(18 * 3, y - 1, SSD1306_WHITE);
 }
 
-void drawGraph(float the_array[], Adafruit_SSD1306& dis, const int start_val, const String string_val){
-  float max_value = -9999.9f;
-  float min_value = 9999.9f;
-  
+void drawGraph(float the_array[], Adafruit_SSD1306& dis, const int start_val, const String string_val, float min_value, float max_value) {
+  //  float max_value = -9999.9f;
+  //  float min_value = 9999.9f;
+
   for (int i = 0; i < array_len; ++i) {
     float the_value_now = the_array[i];
     if (the_value_now == -1) continue;
     if (the_value_now > max_value) max_value = the_value_now;
     if (the_value_now < min_value) min_value = the_value_now;
   }
-  float the_step = (max_value-min_value)>0 ? (max_value-min_value)/(SCREEN_HEIGHT-1) : 1.0f; // Division durch 0 vermeiden
+  float the_step = (max_value - min_value) > 0 ? (max_value - min_value) / (SCREEN_HEIGHT - 1) : 1.0f; // Division durch 0 vermeiden
 
-  for (int i = 0; i < array_len; ++i){
+  for (int i = 0; i < array_len; ++i) {
     int idx = (start_val + i) % array_len;
-    if (idx < 0) idx += array_len; 
+    if (idx < 0) idx += array_len;
     float acual_value_now = the_array[idx];
-    if (acual_value_now == -1){
+    if (acual_value_now == -1) {
       continue;
     }
-    int y_value = (int)round(((acual_value_now - min_value)/the_step));
-    if (y_value <0) y_value = 0;
-    if (y_value > (SCREEN_HEIGHT-1)) y_value = (SCREEN_HEIGHT-1);
+    int y_value = (int)round(((acual_value_now - min_value) / the_step));
+    if (y_value < 0) y_value = 0;
+    if (y_value > (SCREEN_HEIGHT - 1)) y_value = (SCREEN_HEIGHT - 1);
 
     int x = i * 3;
     if (x >= 0 && x < SCREEN_WIDTH && y_value >= 0 && y_value < SCREEN_HEIGHT) {
       dis.drawPixel(x, y_value, SSD1306_INVERSE);
     }
-  } 
+  }
   dis.setCursor(xMax + 5, 0);
   dis.print(max_value, 1);
   dis.println((string_val));
@@ -316,86 +343,86 @@ void drawGraph(float the_array[], Adafruit_SSD1306& dis, const int start_val, co
 
   dis.setCursor(xMax + 5, 25);
   dis.print(min_value, 1);
-  dis.println((string_val));  
-  
-  //display.println(F(" %"));                   
+  dis.println((string_val));
+
+  //display.println(F(" %"));
 }
 
 // ---------- EEPROM Persistenz für Messdaten ----------
 
 namespace {
-  // Layout-Kontrolle
-  constexpr uint16_t EEPROM_MAGIC   = 0xBEE5;
-  constexpr uint8_t  EEPROM_VERSION = 1;
+// Layout-Kontrolle
+constexpr uint16_t EEPROM_MAGIC   = 0xBEE5;
+constexpr uint8_t  EEPROM_VERSION = 1;
 
-  struct EepromHeader {
-    uint16_t magic;     // 0xBEE5
-    uint8_t  version;   // 1
-    uint8_t  reserved;  // ausgerichtet auf 4 Bytes
-    uint16_t checksum;  // Fletcher-16 über den Payload
-  };
+struct EepromHeader {
+  uint16_t magic;     // 0xBEE5
+  uint8_t  version;   // 1
+  uint8_t  reserved;  // ausgerichtet auf 4 Bytes
+  uint16_t checksum;  // Fletcher-16 über den Payload
+};
 
-  struct EepromPayload {
-    float temp[array_len];
-    float humid[array_len];
-    float baro[array_len];
-    int16_t old_hour_saved;
-    int16_t old_day_saved;
-  };
+struct EepromPayload {
+  float temp[array_len];
+  float humid[array_len];
+  float baro[array_len];
+  int16_t old_hour_saved;
+  int16_t old_day_saved;
+};
 
-  struct EepromImage {
-    EepromHeader  hdr;
-    EepromPayload data;
-  };
+struct EepromImage {
+  EepromHeader  hdr;
+  EepromPayload data;
+};
 
-  // Fletcher-16 über beliebige Bytes (Payload)
-  uint16_t fletcher16(const uint8_t* data, size_t len) {
-    uint16_t sum1 = 0;
-    uint16_t sum2 = 0;
-    for (size_t i = 0; i < len; ++i) {
-      sum1 = (sum1 + data[i]) % 255;
-      sum2 = (sum2 + sum1)  % 255;
-    }
-    return (sum2 << 8) | sum1;
+// Fletcher-16 über beliebige Bytes (Payload)
+uint16_t fletcher16(const uint8_t* data, size_t len) {
+  uint16_t sum1 = 0;
+  uint16_t sum2 = 0;
+  for (size_t i = 0; i < len; ++i) {
+    sum1 = (sum1 + data[i]) % 255;
+    sum2 = (sum2 + sum1)  % 255;
   }
+  return (sum2 << 8) | sum1;
+}
 
-  // Liest komplette Struktur aus EEPROM in 'img'
-  void eepromReadImage(EepromImage& img) {
-    int addr = 0;
-    EEPROM.get(addr, img);
-  }
+// Liest komplette Struktur aus EEPROM in 'img'
+void eepromReadImage(EepromImage& img) {
+  int addr = 0;
+  EEPROM.get(addr, img);
+}
 
-  // Schreibt komplette Struktur 'img' in EEPROM
-  void eepromWriteImage(const EepromImage& img) {
-    int addr = 0;
-    EEPROM.put(addr, img);
-    // Für ESP8266/ESP32 wäre ein EEPROM.commit() nötig; bei AVR nicht.
-    #if defined(ESP8266) || defined(ESP32)
-      EEPROM.commit();
-    #endif
-  }
+// Schreibt komplette Struktur 'img' in EEPROM
+void eepromWriteImage(const EepromImage& img) {
+  int addr = 0;
+  EEPROM.put(addr, img);
+  // Für ESP8266/ESP32 wäre ein EEPROM.commit() nötig; bei AVR nicht.
+#if defined(ESP8266) || defined(ESP32)
+  EEPROM.commit();
+#endif
+}
 
-  // Erstellt den aktuellen Payload aus globalen Variablen
-  void buildCurrentPayload(EepromPayload& pld) {
-    for (int i = 0; i < array_len; ++i) {
-      pld.temp[i]  = temp_messungen[i];
-      pld.humid[i] = humid_messungen[i];
-      pld.baro[i]  = baro_messungen[i];
-    }
-    pld.old_hour_saved = static_cast<int16_t>(old_hour);
-    pld.old_day_saved  = static_cast<int16_t>(old_day);
+// Erstellt den aktuellen Payload aus globalen Variablen
+void buildCurrentPayload(EepromPayload& pld) {
+  for (int i = 0; i < array_len; ++i) {
+    pld.temp[i]  = temp_messungen[i];
+    pld.humid[i] = humid_messungen[i];
+    pld.baro[i]  = baro_messungen[i];
   }
+  pld.old_hour_saved = static_cast<int16_t>(old_hour);
+  pld.old_day_saved  = static_cast<int16_t>(old_day);
+}
 
-  // Überträgt Payload zurück in die globalen Arrays/Status
-  void applyPayloadToGlobals(const EepromPayload& pld) {
-    for (int i = 0; i < array_len; ++i) {
-      temp_messungen[i]  = pld.temp[i];
-      humid_messungen[i] = pld.humid[i];
-      baro_messungen[i]  = pld.baro[i];
-    }
-    old_hour = pld.old_hour_saved;
-    old_day  = pld.old_day_saved;
+// Überträgt Payload zurück in die globalen Arrays/Status
+void applyPayloadToGlobals(const EepromPayload& pld) {
+  for (int i = 0; i < array_len; ++i) {
+    temp_messungen[i]  = pld.temp[i];
+    humid_messungen[i] = pld.humid[i];
+    baro_messungen[i]  = pld.baro[i];
   }
+  old_hour = pld.old_hour_saved;
+  old_day  = pld.old_day_saved;
+}
 
 } // namespace
 
@@ -425,7 +452,6 @@ bool loadMeasurementsFromEEPROM() {
   applyPayloadToGlobals(img.data);
   return true;
 }
-
 
 bool saveMeasurementsToEEPROM() {
   if (EEPROM.length() < (int)sizeof(EepromImage)) {
