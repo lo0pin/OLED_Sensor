@@ -42,7 +42,22 @@ void loop() {
 
   // Nur zur vollen Stunde ins Array (deine Vorgabe bleibt)
   if ((int)right_now.hour() != old_hour) {
-    saveHourlyMeasurements(old_hour, right_now, temp_messungen, humid_messungen, baro_messungen, hourlyMittelwertTemp, hourlyMittelwertHygro, hourlyMittelwertBaro);
+    if (old_hour == old_hour_default) {
+      // 1) Beim allerersten Tick nach dem Boot: Baseline auf aktuelle Stunde setzen...
+      old_hour = (int)right_now.hour();
+      //    ...und jetzt gezielt den *aktuellen* Slot primen:
+      saveHourlyMeasurements(old_hour, right_now,
+                             temp_messungen, humid_messungen, baro_messungen,
+                             hourlyMittelwertTemp, hourlyMittelwertHygro, hourlyMittelwertBaro);
+      // old_hour bleibt = aktuelle Stunde (saveHourlyMeasurements setzt old_hour ohnehin auf right_now.hour())
+    } else {
+      // 2) Später, beim echten Stundenwechsel:
+      //    Vorige Stunde finalisieren (schreibt in Index = alter Wert von old_hour)
+      saveHourlyMeasurements(old_hour, right_now,
+                             temp_messungen, humid_messungen, baro_messungen,
+                             hourlyMittelwertTemp, hourlyMittelwertHygro, hourlyMittelwertBaro);
+      // saveHourlyMeasurements setzt old_hour danach auf die *neue* aktuelle Stunde
+    }
   }
 
   getTimeAndDateString(time_now_string, date_now_string, right_now);

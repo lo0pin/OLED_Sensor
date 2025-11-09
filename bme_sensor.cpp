@@ -8,6 +8,8 @@
 #include <EEPROM.h>
 
 
+
+
 float T = 0.0f;
 float H = 0.0f;
 float P = 0.0f;
@@ -31,7 +33,7 @@ float baro_messungen[array_len] = {
   -1, -1, -1, -1, -1, -1
 };
 
-int old_hour =      99;
+int old_hour =      old_hour_default;
 int old_day =       -1;
 bool sommerzeit =   false;
 
@@ -325,8 +327,10 @@ void drawGraph(float the_array[], Adafruit_SSD1306& dis, const int start_val, co
       continue;
     }
     int y_value = (int)round(((acual_value_now - min_value) / the_step));
+    y_value = (SCREEN_HEIGHT - 1) - y_value;
     if (y_value < 0) y_value = 0;
     if (y_value > (SCREEN_HEIGHT - 1)) y_value = (SCREEN_HEIGHT - 1);
+    
 
     int x = i * 3;
     if (x >= 0 && x < SCREEN_WIDTH && y_value >= 0 && y_value < SCREEN_HEIGHT) {

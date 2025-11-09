@@ -38,6 +38,8 @@ constexpr int   WAIT_TIME_MEASSURE =      200;
 constexpr int   WAIT_TIME_MITTELWERT =    3000;
 constexpr int   xMax = (array_len * 3 < SCREEN_WIDTH - 1) ? array_len * 3 : (SCREEN_WIDTH - 1);
 
+#define old_hour_default 99
+
 /* * * * * * * * * * * * * * * *
  * Globale Variablen -         *
  * nur deklariert!             *
