@@ -30,6 +30,10 @@ void setup() {
     Serial.println(F("EEPROM: Keine gültigen Messdaten – Arrays bleiben wie initialisiert."));
     #endif
   }
+  DateTime setup_now = rtc.now();
+  temp_messungen[setup_now.hour()] = T;
+  humid_messungen[setup_now.hour()] = H;
+  baro_messungen[setup_now.hour()] = P;
 }
 
 

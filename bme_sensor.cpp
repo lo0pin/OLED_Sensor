@@ -184,6 +184,25 @@ void doMeasurements(Adafruit_BME280& bme_var) {
     if (MeassurementTimerMittelwert >= WAIT_TIME_MITTELWERT) {
       mittelwerte_berechnen(T, H, P, tempsforMittelwert, humidsforMittelwert, pressuresforMittelwert, numberOfMeassurements);
       MeassurementTimerMittelwert = 0;
+#if DEBUG
+      Serial.println(F("Temp"));
+      for(int i = 0; i< array_len; ++i){
+        Serial.print(i); Serial.print(F(" ")); Serial.print(temp_messungen[i]); Serial.println(F(", "));
+      }
+      Serial.println("---------------");
+      Serial.println(F("Hygro"));
+      for(int i = 0; i< array_len; ++i){
+        Serial.print(i); Serial.print(F(" ")); Serial.print(humid_messungen[i]); Serial.println(F(", "));
+      }
+      Serial.println("---------------");
+      Serial.println(F("Baro"));
+      for(int i = 0; i< array_len; ++i){
+        //Serial.print(i); Serial.print(F(" ")); 
+        Serial.println(baro_messungen[i]); 
+        //Serial.println(F(", "));
+      }
+      Serial.println("---------------");
+#endif
 #if INDICATOR_LED
       digitalWrite(LED_BUILTIN, 1);
 #endif
@@ -284,10 +303,10 @@ void saveHourlyMeasurements(int& oldhour_var, const DateTime& right_now_var, flo
     humid_messungen_var[oldhour_var] = H_var / hourlyMittelwertCounter;
     baro_messungen_var[oldhour_var]  = P_var / hourlyMittelwertCounter;
   } else {
-  // Optional: Slot explizit markieren (statt "alten" Wert stehen zu lassen)
-  temp_messungen_var[oldhour_var]  = -1;
-  humid_messungen_var[oldhour_var] = -1;
-  baro_messungen_var[oldhour_var]  = -1;
+    // Optional: Slot explizit markieren (statt "alten" Wert stehen zu lassen)
+    temp_messungen_var[oldhour_var]  = -1;
+    humid_messungen_var[oldhour_var] = -1;
+    baro_messungen_var[oldhour_var]  = -1;
   }
   oldhour_var = (int)right_now_var.hour();
   hourlyMittelwertTemp      = 0;
@@ -330,7 +349,7 @@ void drawGraph(float the_array[], Adafruit_SSD1306& dis, const int start_val, co
     y_value = (SCREEN_HEIGHT - 1) - y_value;
     if (y_value < 0) y_value = 0;
     if (y_value > (SCREEN_HEIGHT - 1)) y_value = (SCREEN_HEIGHT - 1);
-    
+
 
     int x = i * 3;
     if (x >= 0 && x < SCREEN_WIDTH && y_value >= 0 && y_value < SCREEN_HEIGHT) {
