@@ -43,6 +43,13 @@ void loop() {
   CheckZeitumstellung(rtc, right_now);
   doMeasurements(bme);
 
+  if (old_minute != right_now.minute()){
+    old_minute = right_now.minute();
+    hourlyMittelwertTemp  += T;
+    hourlyMittelwertHygro += H; 
+    hourlyMittelwertBaro  += P;
+    hourlyMittelwertCounter++;
+  }
 
   // Nur zur vollen Stunde ins Array (deine Vorgabe bleibt)
   if ((int)right_now.hour() != old_hour) {
@@ -158,13 +165,7 @@ void loop() {
     handleButtonInput();
   }
 
-  if (old_minute != right_now.minute()){
-    old_minute = right_now.minute();
-    hourlyMittelwertTemp  += T;
-    hourlyMittelwertHygro += H; 
-    hourlyMittelwertBaro  += P;
-    hourlyMittelwertCounter++;
-  }
+
 
   if (millis() - timer > WAIT_TIME) {
     displaymode = displaymode < numberofdisplaymodes ? displaymode + 1 : 0;

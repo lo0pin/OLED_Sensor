@@ -177,8 +177,8 @@ void setupPeripherie(Adafruit_SSD1306& display_ref, RTC_DS3231& rtc_ref, Adafrui
 
 void doMeasurements(Adafruit_BME280& bme_var) {
   if (millis() - meassure_timer > WAIT_TIME_MEASSURE) {
-#if INDICATOR_LED
-    digitalWrite(LED_BUILTIN, 0);
+#if INDICATOR_LED 
+    digitalWrite(LED_BUILTIN, 0); 
 #endif
     fill_arrays(bme_var, tempsforMittelwert, humidsforMittelwert, pressuresforMittelwert, currentMeassurementCounter);
     if (MeassurementTimerMittelwert >= WAIT_TIME_MITTELWERT) {
@@ -203,8 +203,8 @@ void doMeasurements(Adafruit_BME280& bme_var) {
       }
       Serial.println("---------------");
 #endif
-#if INDICATOR_LED
-      digitalWrite(LED_BUILTIN, 1);
+#if INDICATOR_LED 
+      digitalWrite(LED_BUILTIN, 1); 
 #endif
     } else {
       MeassurementTimerMittelwert += WAIT_TIME_MEASSURE;
@@ -337,6 +337,11 @@ void drawGraph(float the_array[], Adafruit_SSD1306& dis, const int start_val, co
     if (the_value_now < min_value) min_value = the_value_now;
   }
   float the_step = (max_value - min_value) > 0 ? (max_value - min_value) / (SCREEN_HEIGHT - 1) : 1.0f; // Division durch 0 vermeiden
+  int diff = 0;
+  if (the_step < minimumstepfordrawing) {
+    diff = (minimumstepfordrawing - the_step)*(60*minimumstepfordrawing);
+    the_step = minimumstepfordrawing;
+  }
 
   for (int i = 0; i < array_len; ++i) {
     int idx = (start_val + i) % array_len;
@@ -347,6 +352,7 @@ void drawGraph(float the_array[], Adafruit_SSD1306& dis, const int start_val, co
     }
     int y_value = (int)round(((acual_value_now - min_value) / the_step));
     y_value = (SCREEN_HEIGHT - 1) - y_value;
+    y_value -= diff;
     if (y_value < 0) y_value = 0;
     if (y_value > (SCREEN_HEIGHT - 1)) y_value = (SCREEN_HEIGHT - 1);
 

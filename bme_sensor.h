@@ -30,6 +30,8 @@
 
 #define numberofdisplaymodes    3
 
+#define minimumstepfordrawing   0.3
+
 constexpr int   array_len =               24;
 constexpr int   numberOfMeassurements =   5;
 constexpr int   WAIT_TIME =               10000;
