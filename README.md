@@ -1,6 +1,3 @@
-Hier ist dein README – aktualisiert, präzise auf deinen aktuellen Code zugeschnitten und direkt für GitHub bereit.
-
----
 
 # 🌦️ Weather Display with OLED, BME280 & DS3231
 
