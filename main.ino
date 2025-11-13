@@ -14,7 +14,7 @@ void setup() {
   #if FIX_TIME_ONCE
   rtc_ref.adjust(DateTime(F(__DATE__), F(__TIME__)));
   #endif
-  for (int i = 0; i < numberOfMeassurements; ++i) {
+  for (uint8_t i = 0; i < numberOfMeassurements; ++i) {
     fill_arrays(bme, tempsforMittelwert, humidsforMittelwert, pressuresforMittelwert, i);
   }
   mittelwerte_berechnen(T, H, P, tempsforMittelwert, humidsforMittelwert, pressuresforMittelwert, numberOfMeassurements);
@@ -76,7 +76,7 @@ void loop() {
   display.clearDisplay();
   display.setCursor(0, 0);
 
-  int start = (right_now.hour() + 1) % array_len;
+  uint8_t start = (right_now.hour() + 1) % array_len;
   if (start < 0) start += array_len; 
 
   switch (displaymode) {
@@ -95,10 +95,10 @@ void loop() {
         //drawGraph(temp_messungen, display, start, F(" C"), T_MIN, T_MAX);
 
 
-        for (int i = 0; i < array_len; ++i) {
+        for (uint8_t i = 0; i < array_len; ++i) {
           int idx = (start + i) % array_len;
           if (idx < 0) idx += array_len; 
-          float v = temp_messungen[idx];
+          float v = int16_tToFloat(temp_messungen[idx]);
           if (v == -1) continue; // nur echte Messwerte plotten
 
           if (v < T_MIN) v = T_MIN;
@@ -116,7 +116,7 @@ void loop() {
         float durchschnitt = 0.f;
         int divisor = 0;
         for (int i = 0; i < array_len; ++i) {
-          float current_temp_mess = temp_messungen[i];
+          float current_temp_mess = int16_tToFloat(temp_messungen[i]);
           if (current_temp_mess == -1) continue;
           durchschnitt += current_temp_mess;
           divisor++;
@@ -172,3 +172,4 @@ void loop() {
     timer = millis();
   }
 }
+
