@@ -32,13 +32,13 @@
 
 #define minimumstepfordrawing   0.3
 
-constexpr int   array_len =               24;
-constexpr int   numberOfMeassurements =   5;
-constexpr int   WAIT_TIME =               10000;
-constexpr int   WAIT_TIME_BUTTON =        300;
-constexpr int   WAIT_TIME_MEASSURE =      200;
-constexpr int   WAIT_TIME_MITTELWERT =    3000;
-constexpr int   xMax = (array_len * 3 < SCREEN_WIDTH - 1) ? array_len * 3 : (SCREEN_WIDTH - 1);
+constexpr uint8_t    array_len =               24;
+constexpr uint8_t    numberOfMeassurements =   5;
+constexpr uint16_t   WAIT_TIME =               10000;
+constexpr uint16_t   WAIT_TIME_BUTTON =        300;
+constexpr uint8_t    WAIT_TIME_MEASSURE =      200;
+constexpr uint16_t   WAIT_TIME_MITTELWERT =    3000;
+constexpr uint8_t    xMax = (array_len * 3 < SCREEN_WIDTH - 1) ? array_len * 3 : (SCREEN_WIDTH - 1);
 
 #define old_hour_default 99
 
@@ -48,33 +48,33 @@ constexpr int   xMax = (array_len * 3 < SCREEN_WIDTH - 1) ? array_len * 3 : (SCR
  * * * * * * * * * * * * * * * */
 
 //Temperatur, Luftfeuchte, Luftdruck
-extern float T, H, P;
+extern int16_t T, H, P;
 
 //Aufnahme in 24h Chronologie
-extern float  temp_messungen[array_len];
-extern float  humid_messungen[array_len];
-extern float  baro_messungen[array_len];
-extern int  old_hour;
-extern int  old_day;
+extern int16_t  temp_messungen[array_len];
+extern int16_t  humid_messungen[array_len];
+extern int16_t  baro_messungen[array_len];
+extern uint8_t  old_hour;
+extern int8_t  old_day;
 
 //Mittelwertbildung
-extern int    currentMeassurementCounter; //0...5
-extern float  tempsforMittelwert[numberOfMeassurements];
-extern float  humidsforMittelwert[numberOfMeassurements];
-extern float  pressuresforMittelwert[numberOfMeassurements];
+extern uint8_t    currentMeassurementCounter; //0...5
+extern int16_t    tempsforMittelwert[numberOfMeassurements];
+extern int16_t    humidsforMittelwert[numberOfMeassurements];
+extern int16_t    pressuresforMittelwert[numberOfMeassurements];
 
-extern int    MeassurementTimerMittelwert;
+extern uint16_t    MeassurementTimerMittelwert;
 
-extern float    hourlyMittelwertTemp;
-extern float    hourlyMittelwertHygro;
-extern float    hourlyMittelwertBaro;
+extern int16_t    hourlyMittelwertTemp;
+extern int16_t    hourlyMittelwertHygro;
+extern int16_t    hourlyMittelwertBaro;
 extern uint8_t     hourlyMittelwertCounter;
-extern int         old_minute;
+extern uint8_t         old_minute;
 
 extern bool   sommerzeit;
 
 //Anzeigestatus "Page"
-extern int    displaymode;
+extern uint8_t    displaymode;
 
 //diverse Timer
 extern unsigned long  timer;
@@ -127,3 +127,6 @@ void saveHourlyMeasurements(int& oldhour_var, const DateTime& right_now_var, flo
 
 void drawAxeY(int y, Adafruit_SSD1306& dis);
 void drawGraph(float the_array[], Adafruit_SSD1306& dis, const int start_val, const String string_val, float min_value, float max_value);
+
+float int16_tToFloat (int16_t num);
+int16_t FloatToInt16_t (float num);
