@@ -10,41 +10,41 @@
 
 
 
-float T = 0.0f;
-float H = 0.0f;
-float P = 0.0f;
+int16_t T = 0;
+int16_t H = 0;
+int16_t P = 0;
 
-float temp_messungen[array_len] = {
+int16_t temp_messungen[array_len] = {
   -1, -1, -1, -1, -1, -1,
   -1, -1, -1, -1, -1, -1,
   -1, -1, -1, -1, -1, -1,
   -1, -1, -1, -1, -1, -1
 };
-float humid_messungen[array_len] = {
+int16_t humid_messungen[array_len] = {
   -1, -1, -1, -1, -1, -1,
   -1, -1, -1, -1, -1, -1,
   -1, -1, -1, -1, -1, -1,
   -1, -1, -1, -1, -1, -1
 };
-float baro_messungen[array_len] = {
+int16_t baro_messungen[array_len] = {
   -1, -1, -1, -1, -1, -1,
   -1, -1, -1, -1, -1, -1,
   -1, -1, -1, -1, -1, -1,
   -1, -1, -1, -1, -1, -1
 };
 
-int old_hour =      old_hour_default;
-int old_day =       -1;
+uint8_t old_hour =      old_hour_default;
+int8_t old_day =       -1;
 bool sommerzeit =   false;
 
-int currentMeassurementCounter = 0;
-float tempsforMittelwert[numberOfMeassurements] = {}; //5
-float humidsforMittelwert[numberOfMeassurements] = {};
-float pressuresforMittelwert[numberOfMeassurements] = {};
+uint8_t currentMeassurementCounter = 0;
+int16_t tempsforMittelwert[numberOfMeassurements] = {}; //5
+int16_t humidsforMittelwert[numberOfMeassurements] = {};
+int16_t pressuresforMittelwert[numberOfMeassurements] = {};
 
-int MeassurementTimerMittelwert = 0;
+uint16_t MeassurementTimerMittelwert = 0;
 
-int displaymode =   0;
+uint8_t displaymode =   0;
 
 unsigned long timer =           0;
 unsigned long button_timer =    0;
@@ -53,11 +53,11 @@ unsigned long meassure_timer =  0;
 String time_now_string =        "";
 String date_now_string =        "";
 
-float    hourlyMittelwertTemp      = 0;
-float    hourlyMittelwertHygro     = 0;
-float    hourlyMittelwertBaro      = 0;
-uint8_t     hourlyMittelwertCounter   = 0;
-int         old_minute                = 99;
+int16_t    hourlyMittelwertTemp      = 0;
+int16_t    hourlyMittelwertHygro     = 0;
+int16_t    hourlyMittelwertBaro      = 0;
+uint8_t    hourlyMittelwertCounter   = 0;
+uint8_t    old_minute                = 99;
 
 
 void getTimeAndDateString(String& timeString, String& dateString, const DateTime& actual_datetime) {
@@ -94,19 +94,19 @@ void getTimeAndDateString(String& timeString, String& dateString, const DateTime
 }
 
 
-void fill_arrays(Adafruit_BME280& bme_ref, float temp[], float humi[], float pressur[], int& meassure) {
-  temp[meassure] = bme_ref.readTemperature();     // °C
-  humi[meassure] = bme_ref.readHumidity();
-  pressur[meassure] = bme_ref.readPressure() / 100.0F; // in hPa
+void fill_arrays(Adafruit_BME280& bme_ref, int16_t temp[], int16_t humi[], int16_t pressur[], uint8_t& meassure) {
+  temp[meassure] =     FloatToInt16_t(bme_ref.readTemperature());     // °C
+  humi[meassure] =     FloatToInt16_t(bme_ref.readHumidity());
+  pressur[meassure] =   FloatToInt16_t(bme_ref.readPressure() / 100.0F); // in hPa
   meassure = meassure < 4 ? meassure + 1 : 0;
 }
 
-void mittelwerte_berechnen(float& te, float& hy, float& ba, float temp[], float hygro[], float baro[], const int& measure) {
+void mittelwerte_berechnen(int16_t& te, int16_t& hy, int16_t& ba, int16_t temp[], int16_t hygro[], int16_t baro[], const uint8_t& measure) {
   // Mittelwerte bilden
   te = 0;
   hy = 0;
   ba = 0;
-  for (int i = 0; i < measure; ++i) {
+  for (uint8_t i = 0; i < measure; ++i) {
     te += temp[i];
     hy += hygro[i];
     ba += baro[i];
@@ -114,9 +114,6 @@ void mittelwerte_berechnen(float& te, float& hy, float& ba, float temp[], float 
   te /= measure; hy /= measure; ba /= measure;
   //currentMeassurementCounter = 0;
 }
-
-
-
 
 void setupPins() {
   pinMode(upperbuttonpowersource, OUTPUT);
@@ -173,6 +170,14 @@ void setupPeripherie(Adafruit_SSD1306& display_ref, RTC_DS3231& rtc_ref, Adafrui
 
   //display_ref.display();
   // Aktualisiert das Display – alles, was im Speicher steht, wird jetzt angezeigt.
+}
+
+float int16_tToFloat (int16_t num){
+  return (float)(num/10);
+}
+
+int16_t FloatToInt16_t (float num){
+  return (int16_t)(num*10);
 }
 
 void doMeasurements(Adafruit_BME280& bme_var) {
@@ -282,7 +287,7 @@ bool isPastLastSundayOfOctober(const DateTime& dt) {
   return ((dt.month() == 10 && 31 - dt.day() < 7) || dt.month() > 10);
 }
 
-void printTimeDateMeasurements(Adafruit_SSD1306& dis, String& tns, String& dns, float& T, float& H, float& P) {
+void printTimeDateMeasurements(Adafruit_SSD1306& dis, String& tns, String& dns, int16_t& T, int16_t& H, int16_t& P) {
   dis.print(tns);
   dis.print("  ");
   dis.println(dns);
@@ -297,7 +302,7 @@ void printTimeDateMeasurements(Adafruit_SSD1306& dis, String& tns, String& dns, 
   dis.print(F(" hPa"));
 }
 
-void saveHourlyMeasurements(int& oldhour_var, const DateTime& right_now_var, float temp_messungen_var[], float humid_messungen_var[], float baro_messungen_var[], float& T_var, float& H_var, float& P_var) {
+void saveHourlyMeasurements(uint8_t& oldhour_var, const DateTime& right_now_var, int16_t temp_messungen_var[], int16_t humid_messungen_var[], int16_t baro_messungen_var[], int16_t& T_var, int16_t& H_var, int16_t& P_var) {
   if (hourlyMittelwertCounter > 0) {
     temp_messungen_var[oldhour_var]  = T_var / hourlyMittelwertCounter;
     humid_messungen_var[oldhour_var] = H_var / hourlyMittelwertCounter;
@@ -308,7 +313,7 @@ void saveHourlyMeasurements(int& oldhour_var, const DateTime& right_now_var, flo
     humid_messungen_var[oldhour_var] = -1;
     baro_messungen_var[oldhour_var]  = -1;
   }
-  oldhour_var = (int)right_now_var.hour();
+  oldhour_var = (uint8_t)right_now_var.hour();
   hourlyMittelwertTemp      = 0;
   hourlyMittelwertHygro     = 0;
   hourlyMittelwertBaro      = 0;
@@ -326,12 +331,12 @@ void drawAxeY(int y, Adafruit_SSD1306& dis) {
   dis.drawPixel(18 * 3, y - 1, SSD1306_WHITE);
 }
 
-void drawGraph(float the_array[], Adafruit_SSD1306& dis, const int start_val, const String string_val, float min_value, float max_value) {
+void drawGraph(int16_t the_array[], Adafruit_SSD1306& dis, const uint8_t start_val, const String string_val, int16_t min_value, int16_t max_value) {
   //  float max_value = -9999.9f;
   //  float min_value = 9999.9f;
 
   for (int i = 0; i < array_len; ++i) {
-    float the_value_now = the_array[i];
+    float the_value_now = int16_tToFloat(the_array[i]);
     if (the_value_now == -1) continue;
     if (the_value_now > max_value) max_value = the_value_now;
     if (the_value_now < min_value) min_value = the_value_now;
@@ -346,7 +351,7 @@ void drawGraph(float the_array[], Adafruit_SSD1306& dis, const int start_val, co
   for (int i = 0; i < array_len; ++i) {
     int idx = (start_val + i) % array_len;
     if (idx < 0) idx += array_len;
-    float acual_value_now = the_array[idx];
+    float acual_value_now = int16_tToFloat(the_array[idx]);
     if (acual_value_now == -1) {
       continue;
     }
@@ -501,3 +506,4 @@ bool saveMeasurementsToEEPROM() {
   eepromWriteImage(img);
   return true;
 }
+
