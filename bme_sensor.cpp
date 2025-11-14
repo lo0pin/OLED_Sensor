@@ -3,7 +3,6 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include "RTClib.h"
-#include "bme_sensor.h"
 #include <Arduino.h>
 #include <EEPROM.h>
 
@@ -138,6 +137,9 @@ void setupPeripherie(Adafruit_SSD1306& display_ref, RTC_DS3231& rtc_ref, Adafrui
 #endif
     while (1);
   }
+#if FIX_TIME_ONCE
+  rtc_ref.adjust(DateTime(F(__DATE__), F(__TIME__)));
+#endif
   if (!bme_ref.begin(0x76)) {
 #if DEBUG
     Serial.println(F("BME280 not found"));
@@ -501,3 +503,4 @@ bool saveMeasurementsToEEPROM() {
   eepromWriteImage(img);
   return true;
 }
+
