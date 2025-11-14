@@ -11,9 +11,7 @@ void setup() {
   Wire.begin();
   setupPins();
   setupPeripherie(display, rtc, bme);
-  #if FIX_TIME_ONCE
-  rtc_ref.adjust(DateTime(F(__DATE__), F(__TIME__)));
-  #endif
+
   for (int i = 0; i < numberOfMeassurements; ++i) {
     fill_arrays(bme, tempsforMittelwert, humidsforMittelwert, pressuresforMittelwert, i);
   }
@@ -172,3 +170,4 @@ void loop() {
     timer = millis();
   }
 }
+
