@@ -3,7 +3,6 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include "RTClib.h"
-#include "bme_sensor.h"
 #include <Arduino.h>
 #include <EEPROM.h>
 
@@ -50,47 +49,21 @@ unsigned long timer =           0;
 unsigned long button_timer =    0;
 unsigned long meassure_timer =  0;
 
-String time_now_string =        "";
-String date_now_string =        "";
+//String time_now_string =        "";
+//String date_now_string =        "";
+char timeBuf[buffLen];
+char dateBuf[buffLen];
 
-int16_t    hourlyMittelwertTemp      = 0;
-int16_t    hourlyMittelwertHygro     = 0;
-int16_t    hourlyMittelwertBaro      = 0;
+int32_t    hourlyMittelwertTemp      = 0;
+int32_t    hourlyMittelwertHygro     = 0;
+int32_t    hourlyMittelwertBaro      = 0;
 uint8_t    hourlyMittelwertCounter   = 0;
 uint8_t    old_minute                = 99;
 
 
-void getTimeAndDateString(String& timeString, String& dateString, const DateTime& actual_datetime) {
-  if (actual_datetime.hour() < 10) {
-    timeString = "0";
-    timeString += String(actual_datetime.hour());
-  } else {
-    timeString = String(actual_datetime.hour());
-  }
-  timeString = String(actual_datetime.hour());
-  timeString += ":";
-  if ((int)actual_datetime.minute() < 10) {
-    timeString += "0";
-  }
-  timeString += String(actual_datetime.minute());
-  timeString += ":";
-  if (actual_datetime.second() < 10) timeString += "0";
-  timeString += String(actual_datetime.second());
-
-  if ((int)actual_datetime.day() < 10) {
-    dateString = "0";
-    dateString += String(actual_datetime.day());
-  } else {
-    dateString = String(actual_datetime.day());
-  }
-  dateString = String(actual_datetime.day());
-  dateString += ".";
-  if (actual_datetime.month() < 10) {
-    dateString += "0";
-  }
-  dateString += String(actual_datetime.month());
-  dateString += ".";
-  dateString += String(actual_datetime.year());
+void getTimeAndDateString(char* timeString, size_t timeSize, char* dateString, size_t dateSize, const DateTime& dt) {
+  snprintf(timeString, timeSize, "%02d:%02d:%02d", dt.hour(), dt.minute(), dt.second());
+  snprintf(dateString, dateSize, "%02d.%02d.%04d", dt.day(), dt.month(), dt.year());
 }
 
 
@@ -103,16 +76,19 @@ void fill_arrays(Adafruit_BME280& bme_ref, int16_t temp[], int16_t humi[], int16
 
 void mittelwerte_berechnen(int16_t& te, int16_t& hy, int16_t& ba, int16_t temp[], int16_t hygro[], int16_t baro[], const uint8_t& measure) {
   // Mittelwerte bilden
-  te = 0;
-  hy = 0;
-  ba = 0;
+  int32_t sumT = 0;
+  int32_t sumH = 0;
+  int32_t sumB = 0;
   for (uint8_t i = 0; i < measure; ++i) {
-    te += temp[i];
-    hy += hygro[i];
-    ba += baro[i];
+    sumT += temp[i];
+    sumH += hygro[i];
+    sumB += baro[i];
   }
-  te /= measure; hy /= measure; ba /= measure;
+  sumT /= measure; sumH /= measure; sumB /= measure;
   //currentMeassurementCounter = 0;
+  te = (int16_t)sumT;
+  hy = (int16_t)sumH;
+  ba = (int16_t)sumB;
 }
 
 void setupPins() {
@@ -135,6 +111,9 @@ void setupPeripherie(Adafruit_SSD1306& display_ref, RTC_DS3231& rtc_ref, Adafrui
 #endif
     while (1);
   }
+#if FIX_TIME_ONCE
+  rtc_ref.adjust(DateTime(F(__DATE__), F(__TIME__)));
+#endif
   if (!bme_ref.begin(0x76)) {
 #if DEBUG
     Serial.println(F("BME280 not found"));
@@ -173,7 +152,7 @@ void setupPeripherie(Adafruit_SSD1306& display_ref, RTC_DS3231& rtc_ref, Adafrui
 }
 
 float int16_tToFloat (int16_t num){
-  return (float)(num/10);
+  return (float)num / 10.0f;
 }
 
 int16_t FloatToInt16_t (float num){
@@ -287,26 +266,29 @@ bool isPastLastSundayOfOctober(const DateTime& dt) {
   return ((dt.month() == 10 && 31 - dt.day() < 7) || dt.month() > 10);
 }
 
-void printTimeDateMeasurements(Adafruit_SSD1306& dis, String& tns, String& dns, int16_t& T, int16_t& H, int16_t& P) {
+void printTimeDateMeasurements(Adafruit_SSD1306& dis, char* tns, char* dns, int16_t& T, int16_t& H, int16_t& P) {
   dis.print(tns);
   dis.print("  ");
   dis.println(dns);
+
   dis.print(F("Temp:  "));
-  dis.print(T, 1);
-  dis.println(" C");
+  printFixed10(dis, T);
+  dis.println(F(" C"));
+
   dis.print(F("Hygr:  "));
-  dis.print(H, 1);
-  dis.println(" %");
+  printFixed10(dis, H);
+  dis.println(F(" %"));
+
   dis.print(F("Baro:  "));
-  dis.print(P, 1);
-  dis.print(F(" hPa"));
+  printFixed10(dis, P);
+  dis.println(F(" hPa"));  
 }
 
-void saveHourlyMeasurements(uint8_t& oldhour_var, const DateTime& right_now_var, int16_t temp_messungen_var[], int16_t humid_messungen_var[], int16_t baro_messungen_var[], int16_t& T_var, int16_t& H_var, int16_t& P_var) {
+void saveHourlyMeasurements(uint8_t& oldhour_var, const DateTime& right_now_var, int16_t temp_messungen_var[], int16_t humid_messungen_var[], int16_t baro_messungen_var[], int32_t& T_var, int32_t& H_var, int32_t& P_var) {
   if (hourlyMittelwertCounter > 0) {
-    temp_messungen_var[oldhour_var]  = T_var / hourlyMittelwertCounter;
-    humid_messungen_var[oldhour_var] = H_var / hourlyMittelwertCounter;
-    baro_messungen_var[oldhour_var]  = P_var / hourlyMittelwertCounter;
+    temp_messungen_var[oldhour_var]  = (int16_t)(T_var / hourlyMittelwertCounter);
+    humid_messungen_var[oldhour_var] = (int16_t)(H_var / hourlyMittelwertCounter);
+    baro_messungen_var[oldhour_var]  = (int16_t)(P_var / hourlyMittelwertCounter);
   } else {
     // Optional: Slot explizit markieren (statt "alten" Wert stehen zu lassen)
     temp_messungen_var[oldhour_var]  = -1;
@@ -325,19 +307,21 @@ void saveHourlyMeasurements(uint8_t& oldhour_var, const DateTime& right_now_var,
 void drawAxeY(int y, Adafruit_SSD1306& dis) {
   if (y < 0) y = 0;
   if (y > SCREEN_HEIGHT - 1) y = SCREEN_HEIGHT - 1;
+  
   dis.drawLine(0, y, xMax, y, SSD1306_WHITE);
   dis.drawPixel(6 * 3, y - 1, SSD1306_WHITE);
   dis.drawPixel(12 * 3, y - 1, SSD1306_WHITE);
   dis.drawPixel(18 * 3, y - 1, SSD1306_WHITE);
 }
 
-void drawGraph(int16_t the_array[], Adafruit_SSD1306& dis, const uint8_t start_val, const String string_val, int16_t min_value, int16_t max_value) {
-  //  float max_value = -9999.9f;
-  //  float min_value = 9999.9f;
+void drawGraph(int16_t the_array[], Adafruit_SSD1306& dis, const uint8_t start_val, const __FlashStringHelper* unit, int16_t min_value, int16_t max_value) {
+  max_value = int16_tToFloat(max_value);
+  min_value = int16_tToFloat(min_value);
 
   for (int i = 0; i < array_len; ++i) {
-    float the_value_now = int16_tToFloat(the_array[i]);
-    if (the_value_now == -1) continue;
+    int16_t raw = the_array[i];
+    if (raw == -1) continue;
+    float the_value_now = int16_tToFloat(raw);
     if (the_value_now > max_value) max_value = the_value_now;
     if (the_value_now < min_value) min_value = the_value_now;
   }
@@ -351,10 +335,10 @@ void drawGraph(int16_t the_array[], Adafruit_SSD1306& dis, const uint8_t start_v
   for (int i = 0; i < array_len; ++i) {
     int idx = (start_val + i) % array_len;
     if (idx < 0) idx += array_len;
-    float acual_value_now = int16_tToFloat(the_array[idx]);
-    if (acual_value_now == -1) {
-      continue;
-    }
+    int16_t raw_boy = the_array[idx];
+    if (raw_boy == -1) continue;
+    float acual_value_now = int16_tToFloat(raw_boy);
+    
     int y_value = (int)round(((acual_value_now - min_value) / the_step));
     y_value = (SCREEN_HEIGHT - 1) - y_value;
     y_value -= diff;
@@ -367,19 +351,31 @@ void drawGraph(int16_t the_array[], Adafruit_SSD1306& dis, const uint8_t start_v
       dis.drawPixel(x, y_value, SSD1306_INVERSE);
     }
   }
+  int16_t max10 = (int16_t)round(max_value * 10.0f);
+  int16_t mid10 = (int16_t)round((max_value + min_value) * 5.0f); // (/2)*10 = *5
+  int16_t min10 = (int16_t)round(min_value * 10.0f);
+  
   dis.setCursor(xMax + 5, 0);
-  dis.print(max_value, 1);
-  dis.println((string_val));
-
+  printFixed10(dis, max10);
+  dis.println(unit);
+  
   dis.setCursor(xMax + 5, 12);
-  dis.print((max_value + min_value) / 2, 1);
-  dis.println((string_val));
-
+  printFixed10(dis, mid10);
+  dis.println(unit);
+  
   dis.setCursor(xMax + 5, 25);
-  dis.print(min_value, 1);
-  dis.println((string_val));
+  printFixed10(dis, min10);
+  dis.println(unit);
+}
 
-  //display.println(F(" %"));
+void printFixed10(Adafruit_SSD1306& dis, int16_t valueTimes10) {
+  int16_t whole = valueTimes10 / 10;
+  int16_t frac  = valueTimes10 % 10;
+  if (frac < 0) frac = -frac; // falls negative Werte
+  
+  dis.print(whole);
+  dis.print('.');
+  dis.print(frac);
 }
 
 // ---------- EEPROM Persistenz für Messdaten ----------
@@ -387,7 +383,7 @@ void drawGraph(int16_t the_array[], Adafruit_SSD1306& dis, const uint8_t start_v
 namespace {
 // Layout-Kontrolle
 constexpr uint16_t EEPROM_MAGIC   = 0xBEE5;
-constexpr uint8_t  EEPROM_VERSION = 1;
+constexpr uint8_t  EEPROM_VERSION = 3;
 
 struct EepromHeader {
   uint16_t magic;     // 0xBEE5
@@ -397,9 +393,9 @@ struct EepromHeader {
 };
 
 struct EepromPayload {
-  float temp[array_len];
-  float humid[array_len];
-  float baro[array_len];
+  int16_t temp[array_len];
+  int16_t humid[array_len];
+  int16_t baro[array_len];
   int16_t old_hour_saved;
   int16_t old_day_saved;
 };
@@ -506,4 +502,3 @@ bool saveMeasurementsToEEPROM() {
   eepromWriteImage(img);
   return true;
 }
-

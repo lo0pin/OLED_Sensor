@@ -11,9 +11,6 @@ void setup() {
   Wire.begin();
   setupPins();
   setupPeripherie(display, rtc, bme);
-  #if FIX_TIME_ONCE
-  rtc_ref.adjust(DateTime(F(__DATE__), F(__TIME__)));
-  #endif
   for (uint8_t i = 0; i < numberOfMeassurements; ++i) {
     fill_arrays(bme, tempsforMittelwert, humidsforMittelwert, pressuresforMittelwert, i);
   }
@@ -71,8 +68,9 @@ void loop() {
     }
   }
 
-  getTimeAndDateString(time_now_string, date_now_string, right_now);
-
+  //getTimeAndDateString(time_now_string, date_now_string, right_now);
+  getTimeAndDateString(timeBuf, sizeof(timeBuf), dateBuf, sizeof(dateBuf), right_now);
+  
   display.clearDisplay();
   display.setCursor(0, 0);
 
@@ -82,15 +80,15 @@ void loop() {
   switch (displaymode) {
     case 0: 
       {
-        printTimeDateMeasurements(display, time_now_string, date_now_string, T, H, P);
+        printTimeDateMeasurements(display, timeBuf, dateBuf, T, H, P);
         break;
       }
 
     case 1: {
         display.print(F("T"));
         //DateTime now = rtc.now();
-        const float T_MIN = -10.0;
-        const float T_MAX =  40.0;
+        const int16_t T_MIN = -10;
+        const int16_t T_MAX =  40;
         drawAxeY(SCREEN_HEIGHT - 1 - (int)round((0 - T_MIN) * (SCREEN_HEIGHT - 1) / (T_MAX - T_MIN)),display);
         //drawGraph(temp_messungen, display, start, F(" C"), T_MIN, T_MAX);
 
@@ -98,8 +96,10 @@ void loop() {
         for (uint8_t i = 0; i < array_len; ++i) {
           int idx = (start + i) % array_len;
           if (idx < 0) idx += array_len; 
-          float v = int16_tToFloat(temp_messungen[idx]);
-          if (v == -1) continue; // nur echte Messwerte plotten
+          int16_t raw = temp_messungen[idx];
+          if (raw == -1) continue; // nur echte Messwerte plotten
+          float v = int16_tToFloat(raw);
+          
 
           if (v < T_MIN) v = T_MIN;
           if (v > T_MAX) v = T_MAX;
@@ -116,8 +116,9 @@ void loop() {
         float durchschnitt = 0.f;
         int divisor = 0;
         for (int i = 0; i < array_len; ++i) {
-          float current_temp_mess = int16_tToFloat(temp_messungen[i]);
-          if (current_temp_mess == -1) continue;
+          int16_t raw_dog = temp_messungen[i];
+          if (raw_dog == -1) continue;
+          float current_temp_mess = int16_tToFloat(raw_dog);
           durchschnitt += current_temp_mess;
           divisor++;
           if (current_temp_mess > max_temp) max_temp = current_temp_mess;
@@ -127,20 +128,22 @@ void loop() {
           durchschnitt /= divisor;
         } 
         
+        // Für die Ausgabe in ×10 umrechnen:
+        int16_t max_temp10 = (int16_t)round(max_temp * 10.0f);
+        int16_t avg_temp10 = (int16_t)round(durchschnitt * 10.0f);
+        int16_t min_temp10 = (int16_t)round(min_temp * 10.0f);
+        
         display.setCursor(xMax + 5, 0);
-        display.print(max_temp, 1);
+        printFixed10(display, max_temp10);
         display.print(F(" C"));
-
+        
         display.setCursor(xMax + 5, 12);
-        display.print(durchschnitt, 1);
+        printFixed10(display, avg_temp10);
         display.println(F(" C"));
-
+        
         display.setCursor(xMax + 5, 25);
-        display.print(min_temp, 1);
+        printFixed10(display, min_temp10);
         display.println(F(" C"));
-
-
-
         break;
       }
 
@@ -148,13 +151,13 @@ void loop() {
       {
         display.println("H");
         drawAxeY(SCREEN_HEIGHT / 2, display); //Nulllinie
-        drawGraph(humid_messungen, display, start, F(" %"), 9999.9f, -9999.9f);
+        drawGraph(humid_messungen, display, start, F(" %"), 32000, -32000);
         break;
       }
     case 3: {
         display.print(F("P"));
         drawAxeY(SCREEN_HEIGHT / 2, display); //Nulllinie
-        drawGraph(baro_messungen, display, start, F("hPa"), 9999.9f, -9999.9f);
+        drawGraph(baro_messungen, display, start, F("hPa"), 32000, -32000);
         break;
       }
   }
@@ -172,4 +175,3 @@ void loop() {
     timer = millis();
   }
 }
-

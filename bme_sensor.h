@@ -39,6 +39,7 @@ constexpr uint16_t   WAIT_TIME_BUTTON =        300;
 constexpr uint8_t    WAIT_TIME_MEASSURE =      200;
 constexpr uint16_t   WAIT_TIME_MITTELWERT =    3000;
 constexpr uint8_t    xMax = (array_len * 3 < SCREEN_WIDTH - 1) ? array_len * 3 : (SCREEN_WIDTH - 1);
+constexpr uint8_t    buffLen =                 16;
 
 #define old_hour_default 99
 
@@ -63,13 +64,13 @@ extern int16_t    tempsforMittelwert[numberOfMeassurements];
 extern int16_t    humidsforMittelwert[numberOfMeassurements];
 extern int16_t    pressuresforMittelwert[numberOfMeassurements];
 
-extern uint16_t    MeassurementTimerMittelwert;
+extern uint16_t   MeassurementTimerMittelwert;
 
-extern int16_t    hourlyMittelwertTemp;
-extern int16_t    hourlyMittelwertHygro;
-extern int16_t    hourlyMittelwertBaro;
-extern uint8_t     hourlyMittelwertCounter;
-extern uint8_t         old_minute;
+extern int32_t    hourlyMittelwertTemp;
+extern int32_t    hourlyMittelwertHygro;
+extern int32_t    hourlyMittelwertBaro;
+extern uint8_t    hourlyMittelwertCounter;
+extern uint8_t    old_minute;
 
 extern bool   sommerzeit;
 
@@ -82,8 +83,10 @@ extern unsigned long  button_timer;
 extern unsigned long  meassure_timer;
 
 //Strings für Darstellung von Zeit und Datum
-extern String time_now_string;
-extern String date_now_string;
+//extern String time_now_string;
+//extern String date_now_string;
+extern char timeBuf[buffLen];
+extern char dateBuf[buffLen];
 
 
 /* * * * * * * * * * * * * * * *
@@ -95,11 +98,11 @@ bool loadMeasurementsFromEEPROM();   // gibt true zurück, wenn gültige Daten g
 bool saveMeasurementsToEEPROM();     // schreibt aktuelle Arrays in den EEPROM
 
 //Bereitstellung von Zeit und Datum als String
-void getTimeAndDateString(String& timeString, String& dateString, const DateTime& actual_datetime);
+void getTimeAndDateString(char* timeString, size_t timeSize, char* dateString, size_t dateSize, const DateTime& dt);
 
 //stündliches Befüllen und mittelwertbildung der Messwerte
-void fill_arrays(Adafruit_BME280& bme_ref, float temp[], float humi[], float pressur[], int& meassure);
-void mittelwerte_berechnen(float& te, float& hy, float& ba, float temp[], float hygro[], float baro[], const int& measure);
+void fill_arrays(Adafruit_BME280& bme_ref, int16_t temp[], int16_t humi[], int16_t pressur[], uint8_t& meassure);
+void mittelwerte_berechnen(int16_t& te, int16_t& hy, int16_t& ba, int16_t temp[], int16_t hygro[], int16_t baro[], const uint8_t& measure);
 
 //Setup der Peripherie und Pins des uC
 void setupPins();
@@ -118,15 +121,16 @@ bool isLastSundayOfMarch(const DateTime& dt);
 void CheckZeitumstellung(RTC_DS3231& rtc_ref, const DateTime& dt);
 
 //Grafische Ausgabe 
-void printTimeDateMeasurements(Adafruit_SSD1306& dis, String& tns, String& dns, float& T, float& H, float& P);
+void printTimeDateMeasurements(Adafruit_SSD1306& dis, char* tns, char* dns, int16_t& T, int16_t& H, int16_t& P);
 //void printTimeAndDate(Adafruit_SSD1306& dis, String& tns, String& dns);
-//void printTempHygroBaro(Adafruit_SSD1306& dis, float& T, float& H, float& P);
+//void printTempHygroBaro(Adafruit_SSD1306& dis, int16_t& T, int16_t& H, int16_t& P);
 
 //schreiben in die 24h-Messarrays und ins Eeprom
-void saveHourlyMeasurements(int& oldhour_var, const DateTime& right_now_var, float temp_messungen_var[], float humid_messungen_var[], float baro_messungen_var[],float& T_var, float& H_var, float& P_var);
-
+void saveHourlyMeasurements(uint8_t& oldhour_var, const DateTime& right_now_var, int16_t temp_messungen_var[], int16_t humid_messungen_var[], int16_t baro_messungen_var[], int32_t& T_var, int32_t& H_var, int32_t& P_var);
 void drawAxeY(int y, Adafruit_SSD1306& dis);
-void drawGraph(float the_array[], Adafruit_SSD1306& dis, const int start_val, const String string_val, float min_value, float max_value);
+void drawGraph(int16_t the_array[], Adafruit_SSD1306& dis, const uint8_t start_val, const __FlashStringHelper* unit, int16_t min_value, int16_t max_value);
+
+void printFixed10(Adafruit_SSD1306& dis, int16_t valueTimes10);
 
 float int16_tToFloat (int16_t num);
 int16_t FloatToInt16_t (float num);
