@@ -11,7 +11,9 @@ void setup() {
   Wire.begin();
   setupPins();
   setupPeripherie(display, rtc, bme);
+
   for (uint8_t i = 0; i < numberOfMeassurements; ++i) {
+
     fill_arrays(bme, tempsforMittelwert, humidsforMittelwert, pressuresforMittelwert, i);
   }
   mittelwerte_berechnen(T, H, P, tempsforMittelwert, humidsforMittelwert, pressuresforMittelwert, numberOfMeassurements);
@@ -175,3 +177,4 @@ void loop() {
     timer = millis();
   }
 }
+
