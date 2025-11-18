@@ -434,7 +434,7 @@ void drawGraph(int16_t the_array[], Adafruit_SSD1306& dis, const uint8_t start_v
   printFixed10(dis, min10);
   dis.println(unit);
 }
-
+*/
 void printFixed10(Adafruit_SSD1306& dis, int16_t valueTimes10) {
   int16_t whole = valueTimes10 / 10;
   int16_t frac  = valueTimes10 % 10;
@@ -444,7 +444,7 @@ void printFixed10(Adafruit_SSD1306& dis, int16_t valueTimes10) {
   dis.print('.');
   dis.print(frac);
 }
-*/
+
   
 // ---------- EEPROM Persistenz für Messdaten ----------
 
@@ -570,5 +570,6 @@ bool saveMeasurementsToEEPROM() {
   eepromWriteImage(img);
   return true;
 }
+
 
 
