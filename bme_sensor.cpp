@@ -315,6 +315,73 @@ void drawAxeY(int y, Adafruit_SSD1306& dis) {
 }
 
 void drawGraph(int16_t the_array[], Adafruit_SSD1306& dis, const uint8_t start_val, const __FlashStringHelper* unit, int16_t min_value, int16_t max_value) {
+  // lokale Floats statt die int16-Parameter zu überschreiben
+  float maxf = int16_tToFloat(max_value);
+  float minf = int16_tToFloat(min_value);
+
+  // tatsächliche Min/Max aus Array ermitteln
+  for (int i = 0; i < array_len; ++i) {
+    int16_t raw = the_array[i];
+    if (raw == -1) continue;
+    float v = int16_tToFloat(raw);
+    if (v > maxf) maxf = v;
+    if (v < minf) minf = v;
+  }
+
+  // Mittelwert und Range
+  float middle = (maxf + minf) * 0.5f;
+  float range = maxf - minf; // >= 0
+
+  // Schritt (Skalierung): wie viele Einheiten pro Pixel
+  float the_step = (range > 0.0f) ? (range / (float)(SCREEN_HEIGHT - 1)) : 1.0f;
+  if (the_step < minimumstepfordrawing) {
+    the_step = minimumstepfordrawing;
+  }
+
+  const int centerY = SCREEN_HEIGHT / 2;
+
+  for (int i = 0; i < array_len; ++i) {
+    int idx = (start_val + i) % array_len;
+    if (idx < 0) idx += array_len;
+    int16_t raw_boy = the_array[idx];
+    if (raw_boy == -1) continue;
+    float actual_value_now = int16_tToFloat(raw_boy);
+
+    // Offset zum Mittelwert in Pixeln berechnen
+    int y_offset = (int)round((actual_value_now - middle) / the_step);
+    int y_value = centerY - y_offset;
+
+    // Begrenzen auf Displaybereich
+    if (y_value < 0) y_value = 0;
+    if (y_value > (SCREEN_HEIGHT - 1)) y_value = (SCREEN_HEIGHT - 1);
+
+    int x = i * 3;
+    if (x >= 0 && x < SCREEN_WIDTH && y_value >= 0 && y_value < SCREEN_HEIGHT) {
+      dis.drawPixel(x, y_value, SSD1306_INVERSE);
+    }
+  }
+
+  // Anzeige der Achsenwerte (auf Basis der Float-Werte)
+  int16_t max10 = (int16_t)round(maxf * 10.0f);
+  int16_t mid10 = (int16_t)round(middle * 10.0f);
+  int16_t min10 = (int16_t)round(minf * 10.0f);
+
+  dis.setCursor(xMax + 5, 0);
+  printFixed10(dis, max10);
+  dis.println(unit);
+
+  dis.setCursor(xMax + 5, 12);
+  printFixed10(dis, mid10);
+  dis.println(unit);
+
+  dis.setCursor(xMax + 5, 25);
+  printFixed10(dis, min10);
+  dis.println(unit);
+}
+
+
+/*
+void drawGraph(int16_t the_array[], Adafruit_SSD1306& dis, const uint8_t start_val, const __FlashStringHelper* unit, int16_t min_value, int16_t max_value) {
   max_value = int16_tToFloat(max_value);
   min_value = int16_tToFloat(min_value);
 
@@ -377,7 +444,8 @@ void printFixed10(Adafruit_SSD1306& dis, int16_t valueTimes10) {
   dis.print('.');
   dis.print(frac);
 }
-
+*/
+  
 // ---------- EEPROM Persistenz für Messdaten ----------
 
 namespace {
@@ -502,4 +570,5 @@ bool saveMeasurementsToEEPROM() {
   eepromWriteImage(img);
   return true;
 }
+
 
