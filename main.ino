@@ -5,9 +5,7 @@ RTC_DS3231 rtc;
 Adafruit_BME280 bme;
 
 void setup() {
-  #if DEBUG
-  Serial.begin(9600);
-  #endif
+
   Wire.begin();
   setupPins();
   setupPeripherie(display, rtc, bme);
@@ -177,4 +175,5 @@ void loop() {
     timer = millis();
   }
 }
+
 
