@@ -105,6 +105,9 @@ void setupPins() {
 }
 
 void setupPeripherie(Adafruit_SSD1306& display_ref, RTC_DS3231& rtc_ref, Adafruit_BME280& bme_ref) {
+#if DEBUG
+  Serial.begin(9600);
+#endif
   if (!rtc_ref.begin()) {
 #if DEBUG
     Serial.println(F("RTC not found"));
@@ -570,6 +573,7 @@ bool saveMeasurementsToEEPROM() {
   eepromWriteImage(img);
   return true;
 }
+
 
 
 
